@@ -49,16 +49,13 @@ void sleep_us(unsigned int); /* Exercise 14.5 */
 ssize_t readn(int, void *, size_t); /* Figure 14.24 */
 ssize_t writen(int, const void *, size_t); /* Figure 14.24 */
 int fd_pipe(int *); /* Figure 17.2 */
-int recv_fd(int, ssize_t (*func)(int,
-const void *, size_t)); /* Figure 17.14 */Section B.1 Our Header File 897
+int recv_fd(int, ssize_t (*func)(int, const void *, size_t)); /* Figure 17.14 */
 int send_fd(int, int); /* Figure 17.13 */
-int send_err(int, int,
-const char *); /* Figure 17.12 */
+int send_err(int, int, const char *); /* Figure 17.12 */
 int serv_listen(const char *); /* Figure 17.8 */
 int serv_accept(int, uid_t *); /* Figure 17.9 */
 int cli_conn(const char *); /* Figure 17.10 */
-int buf_args(char *, int (*func)(int,
-char **)); /* Figure 17.23 */
+int buf_args(char *, int (*func)(int, char **)); /* Figure 17.23 */
 int tty_cbreak(int); /* Figure 18.20 */
 int tty_raw(int); /* Figure 18.20 */
 int tty_reset(int); /* Figure 18.20 */

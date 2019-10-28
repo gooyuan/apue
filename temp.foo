@@ -1,0 +1,10 @@
+argc: 2
+argv[0]: ./c03
+argv[1]: 1
+argv[2]: (null)
+argv[3]: XDG_SEAT=seat0
+argv[4]: XDG_SESSION_ID=c2
+argv[5]: LC_IDENTIFICATION=en_US.UTF-8
+argv[6]: QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1
+argv[7]: DISPLAY=:0
+write only
