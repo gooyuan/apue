@@ -41,9 +41,8 @@ void dup2_test(){
 		if(write(fd,buf1,10)!=10)
 			printf("write failed");
 		// dup2(fd, 0) 如果fd 小于2. 那么如何恢复标准I/O输入呢? 如fd=1时, 将标准输出重定向到标准输入, 那么原有的标准输出会关闭吗?
-		// 原有的标准输入会到哪里去呢? 得读一读dup2源码. 搜索不出来. 
-		
-		close(STDOUT_FILENO);
+		// close(STDOUT_FILENO); 证明是可以关闭的, 也确实关闭了, 如果想重新定向回终端输出, 需要先将终端复制存一个备份. 
+	
 		printf("pre dup2(fd, 0) std input stream: %d \n", STDIN_FILENO);
 		printf("pre dup2(fd, 1) std output stream: %d \n", STDOUT_FILENO);
 		int tmpfd;
