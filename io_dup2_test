@@ -1,0 +1,20 @@
+abcdefghijabcdefghijtmpfd after dup2(fd, 1)
+abcdefghij
+ through fd1 write to file? 
+print to file, no show on terminal? 
+post dup2(fd,1) std output stream: 1 
+post dup2(fd, 0) std input stream: 0 
+tmpfd after dup2(fd, 1): 1
+abcdefghij
+ through fd1 write to file? 
+print to file, no show on terminal? 
+post dup2(fd,1) std output stream: 1 
+post dup2(fd, 0) std input stream: 0 
+abcdefghij
+ through fd1 write to file? 
+pre dup2(fd, 0) std input stream: 0 
+pre dup2(fd, 1) std output stream: 1 
+print to file, no show on terminal? 
+post dup2(fd,1) std output stream: 1 
+post dup2(fd, 0) std input stream: 0 
+tmpfd after dup2(fd, 1): 1

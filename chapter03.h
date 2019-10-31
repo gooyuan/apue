@@ -17,4 +17,14 @@ void fcntl_test(int argc, char *argv[]);
  */
 void append_verify_lseek();
 
+/**
+ * dup2 非fcntl 实现
+ */
+int my_dup2(int oldfd, int newfd);
+
+/**
+ * dup2 复制I/O测试
+ */
+void dup2_test();
+
 #endif

@@ -2,6 +2,7 @@
 #include "apue.h"
 #include "chapter03.h"
 #include <fcntl.h>
+#include <string.h>
 
 static char buf1[] = "abcdefghij";
 static char buf2[] = "ABCDEFGHIJ";
@@ -11,7 +12,6 @@ int main(int argc, char *argv[])
 {
 	// create hole test
 	// create_hole_file();
-	
 	// ./c03 0 < /dev/ttyp
 	// ./c03 1 > temp.foo
 	// ./c03 2 2>>temp.foo
@@ -19,10 +19,83 @@ int main(int argc, char *argv[])
 	// fcntl_test(argc, argv);
 	
 	// 以 append flag 打开的文件是否还可以使用lseek 来读写
-	append_verify_lseek();
+	// append_verify_lseek();
+	
+	// my_dup2验证
+	
+	// dup2 复制标准I/O测试
+	dup2_test();
+
 	return 0;
 }
 
+void dup2_test(){
+	int fd = open("io_dup2_test", O_APPEND | O_RDWR, FILE_MODE);
+	if(fd >= 0){
+		// dup(0, fd) 复制标准输出到新的描述符, 新描述符并不代表文件, 只是可以指向终端输出的指针. 
+		if(dup2(0,4) == 4){
+			char *str1 = "\n write to terminal through new fd4 \n";
+			write(4, str1, strlen(str1));
+			write(0, str1, strlen(str1));
+		}
+		if(write(fd,buf1,10)!=10)
+			printf("write failed");
+		// dup2(fd, 0) 如果fd 小于2. 那么如何恢复标准I/O输入呢? 如fd=1时, 将标准输出重定向到标准输入, 那么原有的标准输出会关闭吗?
+		// 原有的标准输入会到哪里去呢? 得读一读dup2源码. 搜索不出来. 
+		
+		close(STDOUT_FILENO);
+		printf("pre dup2(fd, 0) std input stream: %d \n", STDIN_FILENO);
+		printf("pre dup2(fd, 1) std output stream: %d \n", STDOUT_FILENO);
+		int tmpfd;
+		if((tmpfd = dup2(fd, 1)) == 1) {
+			close(fd);
+			char *str = "\n through fd1 write to file? \n";
+			write(1, str, strlen(str));
+			printf("print to file, no show on terminal? \n");
+			printf("post dup2(fd,1) std output stream: %d \n", STDOUT_FILENO);
+			printf("post dup2(fd, 0) std input stream: %d \n", STDIN_FILENO);
+		}
+		
+		printf("tmpfd after dup2(fd, 1): %d\n", tmpfd);
+		
+	}else{
+		printf("open file io_dup2_test failed \n");
+	}
+	
+
+}
+
+/**
+ * 非零即合法, 反之不合法
+ */
+static int is_valid(int fd){
+	if(fd>=getdtablesize()) return -1;
+	int tmpfd = dup(fd);
+	if(tmpfd != -1){
+		close(tmpfd);
+	}
+	return tmpfd != -1;
+}
+int my_dup2(int oldfd, int newfd){
+	// 判断oldfd, newfd 的范围合法性, 使用getdtablesize()得到最新N
+	int maxSize = getdtablesize();
+	if(oldfd >= maxSize || newfd > maxSize) return -1;
+	// 检查oldfd 合法性是否打开, -1 与 EBADF 作为标志判断
+	if(!is_valid(oldfd)) return -1;
+	// 检查oldfd == newfd, 相等则返回oldfd即可. 
+	if(oldfd == newfd) return oldfd;
+	// 检查新fd是否已打开, 新的已打开, 需要先关闭
+	if(is_valid(newfd)) close(newfd); 
+	// 使用dup进行复制, 一直到返回的fd 与newfd相等, 如果中间有描述符在使用dup会跳过吗? 
+	int lastfd=oldfd, curfd=oldfd;
+	while((curfd=dup(curfd)) != -1 && curfd != newfd){
+		if(lastfd != oldfd){
+			close(lastfd);
+		}
+		lastfd = curfd;
+	}
+	return curfd;
+}
 void create_hole_file(){
 	int fd; 
 	if((fd = creat("file.hole", FILE_MODE)) < 0){
