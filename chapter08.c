@@ -26,6 +26,10 @@ void forkTest(){
 	exit(0);
 }
 
+void pr_exit(int status){
+
+}
+
 int main(void){
 
 	// fork 函数测试
