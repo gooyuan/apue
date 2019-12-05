@@ -106,6 +106,7 @@ static void err_doit(int errnoflag, int error, const char *fmt, va_list ap)
  */
 
 static void log_doit(int, int, int, const char *, va_list ap);
+
 /*
  * Caller must define and set this: nonzero if
  * interactive, zero if daemon
@@ -212,6 +213,6 @@ void pr_exit(int status) {
 #else
 				"");
 #endif
-	else if(wifstopped(status))
+	else if(WIFSTOPPED(status))
 		printf("child stopped, signal number = %d\n", WSTOPSIG(status));
 }

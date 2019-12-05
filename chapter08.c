@@ -1,6 +1,7 @@
 
 #include "apue.h"
 #include "chapter08.h"
+#include <sys/wait.h>
 
 int globalVar = 6;
 char buf[] = "a write to stdout\n";
@@ -22,18 +23,48 @@ void forkTest(){
 	}else{
 		sleep(2);
 	}
-	printf("pid: %ld, var: %d, globalVar: %d", pid, var, globalVar);
+	printf("pid: %d, var: %d, globalVar: %d", pid, var, globalVar);
 	exit(0);
 }
 
-void pr_exit(int status){
+void wait_test(){
+	pid_t pid;
+	int status;
+	if((pid = fork()) < 0)
+		err_sys("fork error");
+	else if(pid == 0)
+		exit(7);
+	
+	if(wait(&status) != pid)
+		err_sys("wait error");
+	pr_exit(status);
 
+
+	if((pid = fork()) < 0)
+		err_sys("fork error");
+	else if(pid == 0)
+		abort();
+
+	if(wait(&status) != pid)
+		err_sys("wait error");
+	pr_exit(status);
+
+	if((pid = fork()) < 0)
+		err_sys("fork error");
+	else if(pid == 0)
+		status /= 0;
+
+	if(wait(&status) != pid)
+		err_sys("wait error");
+	pr_exit(status);
 }
 
 int main(void){
 
 	// fork 函数测试
-	forkTest();
+	//forkTest();
+
+	wait_test();
 
 	return 0; 
 }
