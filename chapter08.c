@@ -59,12 +59,41 @@ void wait_test(){
 	pr_exit(status);
 }
 
+void waitpidTest(){
+	pid_t pid;
+	if((pid = fork()) < 0){
+		err_sys("fork error");
+	}else if(pid == 0){
+		if((pid = fork()) < 0){
+			err_sys("fork error");
+		}else if(pid > 0){
+			printf("second fork, pid = %ld, current pid = %ld\n", (long)pid,(long)getpid());
+			exit(0);
+		}	
+		sleep(2);
+		printf("minor public code pid = %ld, current pid = %ld\n", (long)pid, (long)getpid());
+		exit(0);
+	}else{
+		printf("first fork, pid = %ld, current pid = %ld\n", (long)pid,(long)getpid());
+	}
+
+	if(waitpid(pid, NULL, 0) != pid){
+		err_sys("waitpid error");
+	}else{
+		printf("waitpid success pid = %ld\n", (long)pid);
+	}
+	// fork 会返回两次, 这里应该打印2次, 因为, 第二次fork 退出了进程b, 只会打印a, c进程
+	printf("main public code pid = %ld, current pid = %ld\n", (long)pid, (long)getpid());
+	exit(0);
+}
 int main(void){
 
 	// fork 函数测试
-	//forkTest();
+	// forkTest();
 
-	wait_test();
+	// wait_test();
+	
+	waitpidTest();
 
 	return 0; 
 }
