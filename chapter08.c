@@ -86,6 +86,64 @@ void waitpidTest(){
 	printf("main public code pid = %ld, current pid = %ld\n", (long)pid, (long)getpid());
 	exit(0);
 }
+
+static void charatatime(char *str){
+	char	*ptr;
+	int		c;
+	setbuf(stdout, NULL);
+	for (ptr = str; (c = *ptr++) != 0;){
+		putc(c, stdout);
+	}
+}
+
+/**
+ * TELL_WAIT, TELL_CHILD, WAIT_PARENT
+ * 还未实现
+ */
+void raceConditionTest(){
+	pid_t	pid;
+	//TELL_WAIT();
+	if((pid = fork()) < 0){
+		err_sys("fork error");
+	}else if(pid == 0){
+		//WAIT_PARENT();
+		charatatime("output from child\n");
+	}else{
+		charatatime("output from parent\n");
+		//TELL_CHILD(pid);
+	}
+
+	exit(0);
+}
+
+char *env_init[] = {"USER=unkonwn", "PATH=/tmp", NULL};
+
+void execTest(){
+	pid_t	pid;
+	if((pid = fork()) < 0){
+		err_sys("fork error");
+	}else if(pid == 0){
+		printf("child thread");
+		if(execle("/home/songfanxi/bin/echoall", "echoall", "myarg1", "my arg2", (char *)0, env_init)<0){
+			err_sys("execle error");
+		}
+	}else{
+		printf("parent thread %d", pid);
+	}
+
+	if(waitpid(pid, NULL, 0) < 0){
+		err_sys("wait error");
+	}
+
+	if((pid = fork()) < 0){
+		err_sys("fork error");
+	}else if(pid == 0){
+		if(execlp("echoall", "echoall", "only 1 arg", (char *)0)<0){
+			err_sys("execlp error");
+		}
+	}
+}
+
 int main(void){
 
 	// fork 函数测试
@@ -93,7 +151,11 @@ int main(void){
 
 	// wait_test();
 	
-	waitpidTest();
+	//waitpidTest();
+	
+	//raceConditionTest();
+
+	execTest();
 
 	return 0; 
 }
