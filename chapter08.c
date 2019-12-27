@@ -2,6 +2,8 @@
 #include "apue.h"
 #include "chapter08.h"
 #include <sys/wait.h>
+#include <errno.h>
+#include <sys/time.h>
 
 int globalVar = 6;
 char buf[] = "a write to stdout\n";
@@ -14,16 +16,54 @@ void forkTest(){
 		printf("write error");
 	}
 
-	printf("before fork");
+	printf("before fork\n");
 	if((pid = fork()) < 0){
-		printf("fork error");
+		printf("fork error\n");
 	}else if(pid == 0){
 		globalVar++;
 		var++;
-	}else{
+		printf("pid: %d, var: %d, globalVar: %d\n", getpid(), var, globalVar);
+		exit(0);
+	}
+	/*
+	else{
 		sleep(2);
 	}
-	printf("pid: %d, var: %d, globalVar: %d", pid, var, globalVar);
+	*/
+	printf("child pid: %d, self pid: %d, var: %d, globalVar: %d\n", pid, getpid(), var, globalVar);
+	exit(0);
+}
+
+static int anotherVfork(){
+	pid_t pid;
+	if ((pid == vfork()) < 0 ){
+		err_sys("function call vfork error\n");
+	}else if (pid == 0){
+		exit(0);
+	}
+	return pid;
+}
+
+void vforkTest(){
+	int var = 88;
+	pid_t pid;
+
+	printf("before vfork\n");
+	//if((pid = vfork()) < 0){
+	if((pid = anotherVfork()) < 0){
+		printf("vfork error\n");
+	}else if(pid == 0){
+		globalVar++;
+		var++;
+		//printf("pid: %d, var: %d, globalVar: %d\n", getpid(), var, globalVar);
+		exit(0);
+	}
+	/*
+	else{
+		sleep(2);
+	}
+	*/
+	printf("child pid: %d, self pid: %d, var: %d, globalVar: %d\n", pid, getpid(), var, globalVar);
 	exit(0);
 }
 
@@ -144,10 +184,106 @@ void execTest(){
 	}
 }
 
-int main(void){
+#if defined(MACOS)
+#include <sys/syslimits.h>
+#elif defined(SOLARIS)
+#include <limits.h>
+#elif defined(BSD)
+#include <sys/param.h>
+#endif
 
-	// fork 函数测试
-	// forkTest();
+unsigned long long count;
+struct timeval end;
+
+void checktime(char *str){
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	if (tv.tv_sec >= end.tv_sec && tv.tv_usec >= end.tv_usec){
+		printf("%s count = %lld\n", str, count);
+		exit(0);
+	}
+}
+
+void controlWithNiceTest(int argc, char **argv){
+	pid_t	pid;
+	char	*s;
+	int		nzero, ret;
+	int		adj = 0;
+	setbuf(stdout, NULL);
+#if defined(NZEOR)
+	nzero = NZEOR;
+#elif defined(_SC_NZERO)
+	nzero = sysconf(_SC_NZERO);
+#else
+#error NZEOR undefined
+#endif
+
+	printf("NZERO = %d\n", nzero);
+	if(argc == 2){
+		adj = strtol(argv[1], NULL, 10);
+	}
+	gettimeofday(&end, NULL);
+	end.tv_sec += 10;
+	if((pid = fork()) < 0){
+		err_sys("fork failed");
+	}else if(pid == 0){
+		s = "child";
+		printf("current nice in child is %d, adjusting by %d\n", nice(0) + nzero, adj);
+		errno = 0;
+		if((ret = nice(adj)) == -1 && errno != 0)
+			err_sys("child set scheduling priority");
+		printf("now child nice value is %d\n", ret+nzero);
+	}else{
+		s = "parent";
+		printf("current nice value in parent is %d\n", nice(0) + nzero);
+	}
+
+	for(;;){
+		if (++count == 0)
+			err_quit("%s counter wrap", s);
+		checktime(s);
+	}
+}
+
+// 练习题3
+static void exercise3(){
+	pid_t pid;
+	int status;
+	if((pid = fork()) < 0)
+		err_sys("fork error");
+	else if(pid == 0)
+		exit(7);
+	
+	siginfo_t *sig;
+	if(waitid(P_PID, pid, sig, WEXITED) != 0)
+		err_sys("wait error");
+	//pr_exit(status);
+
+
+	if((pid = fork()) < 0)
+		err_sys("fork error");
+	else if(pid == 0)
+		abort();
+
+	if(waitid(P_PID, pid, sig, WEXITED) != 0)
+		err_sys("wait error");
+	//pr_exit(status);
+
+	if((pid = fork()) < 0)
+		err_sys("fork error");
+	else if(pid == 0)
+		status /= 0;
+
+	if(waitid(P_PID, pid, sig, WEXITED) != 0)
+		err_sys("wait error");
+	//pr_exit(status);
+}
+
+int main(int argc, char **argv){
+
+	 //forkTest();
+
+	 //vforkTest();
 
 	// wait_test();
 	
@@ -155,7 +291,10 @@ int main(void){
 	
 	//raceConditionTest();
 
-	execTest();
+	//execTest();
 
+	//controlWithNiceTest(argc, argv);
+
+	 exercise3();
 	return 0; 
 }

@@ -6,7 +6,7 @@ INCL=-I$(HOME)/incl
 OBJ=apue.o chapter08.o
 
 apue: ${OBJ}
-	cc -o apue $(OBJ)
+	cc -o ./build/apue $(OBJ)
 
 #chapter03.o: apue.h chapter03.h
 

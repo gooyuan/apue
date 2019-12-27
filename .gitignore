@@ -1,6 +1,4 @@
 
 *.o
-apue
-echoall
-acread
+build
 *.log
