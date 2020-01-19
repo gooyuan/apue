@@ -3,7 +3,7 @@ INCL=-I$(HOME)/incl
 
 #OBJ=chapter03.o
 
-OBJ=apue.o chapter08.o
+OBJ=apue.o chapter10.o
 
 apue: ${OBJ}
 	cc -o ./build/apue $(OBJ)
@@ -12,7 +12,9 @@ apue: ${OBJ}
 
 apue.o: apue.h
 
-chapter08.o: apue.h chapter08.h
+#chapter08.o: apue.h chapter08.h
+
+chapter10.o: apue.h chapter10.h
 
 .PHONY: clean
 clean:
