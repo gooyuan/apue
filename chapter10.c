@@ -3,6 +3,8 @@
 #include "chapter10.h"
 #include <errno.h>
 #include <pwd.h>
+#include <setjmp.h>
+#include <time.h>
 
 static void sig_usr(int); 
 
@@ -55,6 +57,9 @@ void pr_mask(const char *str){
 
 	sigset_t sigset;
 	int		errno_save;
+
+	errno_save = errno;
+
 	if (sigprocmask(0, NULL, &sigset) < 0){
 		err_ret("sigprocmask error");
 	}else{
@@ -67,7 +72,7 @@ void pr_mask(const char *str){
 		if(sigismember(&sigset, SIGUSR1)){
 			printf("SIGUSR1");
 		}
-		if(sigismember(&sigset, SIGALARM)){
+		if(sigismember(&sigset, SIGALRM)){
 			printf("SIGALARM");
 		}
 		printf("\n");
@@ -75,11 +80,62 @@ void pr_mask(const char *str){
 	errno = errno_save;
 }
 
+static void sig_quit(int);
+
+void sigpendingTest(){
+	sigset_t newmask, oldmask, pendmask;
+	if (signal(SIGQUIT, sig_quit) == SIG_ERR){
+		err_sys("can't catch SIGQUIT");
+	}
+	// block SIGQUIT and save current signal mask
+	sigemptyset(&newmask);
+	sigaddset(&newmask, SIGQUIT);
+	if(sigprocmask(SIG_BLOCK, &newmask, &oldmask) < 0){
+		err_sys("SIG_BLOCK error");
+	}
+
+	// sig_quit here will remain pending
+	sleep(5);
+
+	if (sigpending(&pendmask) < 0)
+		err_sys("sigpending error");
+
+	if(sigismember(&pendmask, SIGQUIT)){
+		printf("\n SIGQUIT pending \n");
+	}
+
+	// restore sinal mask which unblocks SIGQUIT
+	if (sigprocmask(SIG_SETMASK, &oldmask, NULL) <0 ){
+		err_sys("SIG_SETMASK error");
+	}
+
+	printf("SIGQUIT unblocked \n");
+
+	sleep(5);
+	exit(0);
+}
+
+static void sig_usr1(int);
+static void sig_alrm(int);
+static sigjmp_buf jmpbuf; 
+static volatile sig_atomic_t canjmp;
+void jmpAndLongjmpTest(){
+
+}
+
+static void sig_quit(int signo){
+
+	printf("caught SIGQUIT \n");
+	if (signal(SIGQUIT, SIG_DFL) == SIG_ERR)
+		err_sys("can't reset SIGQUIT");
+}
+
 int main(int argc, char **argv){
 
 	//signalTest();
 	
-	reentryTest();
+	// reentryTest();
 
+	sigpendingTest();
 	return 0; 
 }
