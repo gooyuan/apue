@@ -171,6 +171,38 @@ static void sig_quit(int signo){
 		err_sys("can't reset SIGQUIT");
 }
 
+static void procControlExercise(){
+	pid_t pid;
+	int counter = 0;
+
+	// write(STDOUT_FILENO, buf, 1);
+	printf("pid: %d value: %d\n", getpid(), counter);
+
+	TELL_WAIT();
+
+	if ((pid = fork()) == 0){
+		TELL_WAIT();
+		if (sigsetjmp(c_jmp_buf, 0)){
+			if (counter < 20){
+				printf("pid: %d value: %d\n", getpid(), ++counter);
+				siglongjmp(p_jmp_buf, 0);
+			}else{
+				exit(0);
+			}
+		}
+		printf("pid: %d value: %d\n", getpid(), ++counter);
+		siglongjmp(p_jmp_buf, 0);
+	}	
+	if (sigsetjmp(p_jmp_buf, 0)){
+			if (counter < 20){
+				printf("pid: %d value: %d\n", getpid(), ++counter);
+				siglongjmp(c_jmp_buf, 0);
+			}else{
+				exit(0);
+			}
+	}
+}
+
 int main(int argc, char **argv){
 
 	//signalTest();
@@ -179,7 +211,9 @@ int main(int argc, char **argv){
 
 	//sigpendingTest();
 
-	jmpAndLongjmpTest();
+	//jmpAndLongjmpTest();
+
+	procControlExercise();
 
 	return 0; 
 }

@@ -216,3 +216,75 @@ void pr_exit(int status) {
 	else if(WIFSTOPPED(status))
 		printf("child stopped, signal number = %d\n", WSTOPSIG(status));
 }
+
+static volatile sig_atomic_t sigflag;
+static sigset_t newmask, oldmask, zeromask;
+
+/**
+ * 不管是SIGUSR1 还是 SIGUSR2, 子进程和父进程都会将sigflag 置1, 但是由于是原子性的, 所以, 总有一个先置, 
+ * 那么此进程的wait就会跳出sigsuspend, 重新再将
+ * 那么在wait_parent 和 wait_child中, 就会恢复 procmask, 同时也为下一次挂起准备
+ */
+static void sig_usr(int signo){
+	sigflag = 1;
+}
+
+/**
+ * 不管是子进程还是父进程, 都会注册 SIGUSR1, SIGUSR2的监听, 同时也屏蔽这两个信号的处理.
+ */
+void TELL_WAIT(){
+	if (signal(SIGUSR1, sig_usr) == SIG_ERR){
+		err_sys("signal(SIGUSR1) error");
+	}
+	if (signal(SIGUSR2, sig_usr) == SIG_ERR){
+		err_sys("signal(SIGUSR2) error");
+	}
+	sigemptyset(&zeromask);
+	sigemptyset(&newmask);
+	sigaddset(&newmask, SIGUSR1);
+	sigaddset(&newmask, SIGUSR2);
+
+	// 取newmask 和 oldmask的并集, 结果存储在oldmaks中, 那么下一次恢复的时候还带有newmask的值? 
+	// 那还要newmask干什么, 只用在这里一次. 
+	if (sigprocmask(SIG_BLOCK, &newmask, &oldmask) <0){
+		err_sys("SIG_BLOCK error");
+	}
+}
+
+void TELL_PARENT(pid_t pid){
+	kill(pid, SIGUSR2);
+}
+
+void TELL_CHILD(pid_t pid){
+	kill(pid, SIGUSR1);
+}
+
+void WAIT_PARENT(){
+	while (sigflag == 0){
+		/* 先将进程屏蔽字重置, 挂起当前进程, 等待信号处理程序
+		 * 这里将进程屏蔽字置空, 所以, 可以接收所有信号.  
+		 * 这里的同步思想是:
+		 * 主进程和子进程都可以接收到信号, 
+		 * 动态的屏蔽信号, 
+		 */ 
+		sigsuspend(&zeromask);
+	}
+	sigflag = 0;
+
+	/* reset signal mask to original value */
+	if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0){
+		err_sys("SIG_SETMASK error");
+	}
+}
+
+void WAIT_CHILD(){
+	while (sigflag == 0){
+		sigsuspend(&zeromask);
+	}
+	sigflag = 0;
+	/* reset signal mask to original value */
+	if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0){
+		err_sys("SIG_SETMASK error");
+	}
+}
+
