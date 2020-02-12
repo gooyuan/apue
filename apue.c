@@ -246,6 +246,7 @@ void TELL_WAIT(){
 
 	// 取newmask 和 oldmask的并集, 结果存储在oldmaks中, 那么下一次恢复的时候还带有newmask的值? 
 	// 那还要newmask干什么, 只用在这里一次. 
+	// oldmask并不会覆盖? 在wait_child里还会使用oldmask 来打开信号监听
 	if (sigprocmask(SIG_BLOCK, &newmask, &oldmask) <0){
 		err_sys("SIG_BLOCK error");
 	}
@@ -262,6 +263,7 @@ void TELL_CHILD(pid_t pid){
 
 void TELL_OTHER(pid_t pid){
 	const union sigval sigvalue;
+	// 并不起作用. 用法不对? 
 	sigqueue(pid, 0, sigvalue);
 }
 
