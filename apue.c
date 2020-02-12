@@ -252,6 +252,7 @@ void TELL_WAIT(){
 }
 
 void TELL_PARENT(pid_t pid){
+	// kill只是传递信号, 并不会终止进程
 	kill(pid, SIGUSR2);
 }
 
@@ -259,6 +260,12 @@ void TELL_CHILD(pid_t pid){
 	kill(pid, SIGUSR1);
 }
 
+void TELL_OTHER(pid_t pid){
+	const union sigval sigvalue;
+	sigqueue(pid, 0, sigvalue);
+}
+
+// 解开SIGUSR1, SIGUSR2 信号屏蔽
 void WAIT_PARENT(){
 	while (sigflag == 0){
 		/* 先将进程屏蔽字重置, 挂起当前进程, 等待信号处理程序

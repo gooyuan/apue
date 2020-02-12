@@ -171,35 +171,55 @@ static void sig_quit(int signo){
 		err_sys("can't reset SIGQUIT");
 }
 
+static int counter = 0;
+/**
+ * 两个进程交互控制, 按信号这一章的实现, 没有真正实现交替相互控制
+ * 首先, fork 后, 父与子进程哪个先返回就无法控制. 
+ *
+ * 实现交替控制的思想: 
+ * 1. tell_wait, 注册信号监听, 屏蔽信号 SIGUSR1, SIGUSR2
+ * 2. tell_child/tell_parent, 触发信号 SIGUSR1, SIGUSR2
+ * 3. wait_child/wait_parent, 解除当前进程的信号SIGUSR1, SIGUSR2 的屏蔽
+ *
+ * 实际可以简化成一个信号量, 足以实现. 
+ * 
+ */
 static void procControlExercise(){
 	pid_t pid;
-	int counter = 0;
+	counter = 0;
 
 	// write(STDOUT_FILENO, buf, 1);
-	printf("pid: %d value: %d\n", getpid(), counter);
-
 	TELL_WAIT();
 
-	if ((pid = fork()) == 0){
-		TELL_WAIT();
-		if (sigsetjmp(c_jmp_buf, 0)){
-			if (counter < 20){
-				printf("pid: %d value: %d\n", getpid(), ++counter);
-				siglongjmp(p_jmp_buf, 0);
-			}else{
-				exit(0);
-			}
+	if ( (pid = fork()) < 0){
+		err_sys("fork error");
+	}else if (pid == 0){
+		counter=1;
+		printf("pid: %d value: %d\n", getpid(), counter);
+		TELL_PARENT(getppid());
+		//TELL_OTHER(getppid());
+		WAIT_PARENT();
+		sleep(1);
+		while (counter < 20){
+			TELL_WAIT();
+			printf("pid: %d value: %d\n", getpid(), counter+=2);
+			TELL_PARENT(getppid());
+			//TELL_OTHER(getppid());
+			WAIT_PARENT();
 		}
-		printf("pid: %d value: %d\n", getpid(), ++counter);
-		siglongjmp(p_jmp_buf, 0);
-	}	
-	if (sigsetjmp(p_jmp_buf, 0)){
-			if (counter < 20){
-				printf("pid: %d value: %d\n", getpid(), ++counter);
-				siglongjmp(c_jmp_buf, 0);
-			}else{
-				exit(0);
-			}
+		exit(0);
+	}else{	
+		printf("pid: %d value: %d\n", getpid(), counter);
+		//TELL_CHILD(pid);
+		while (counter < 20){
+			TELL_WAIT();
+			sleep(1);
+			TELL_CHILD(pid);
+			//TELL_OTHER(pid);
+			printf("pid: %d value: %d\n", getpid(), counter+=2);
+			WAIT_CHILD();
+		}
+		exit(0);
 	}
 }
 
