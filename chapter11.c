@@ -182,6 +182,109 @@ void foo_rel(struct foo *fp){
 	}
 }
 
+/**
+ * 读写锁示例
+ * 需求: 
+ *	生产者消费者模式. 
+ *	主线程负责分派job, 子线程从主线程中请求job,
+ *
+ * 思路:
+ *	双向链表作为queue的实现
+ */
+
+struct job{
+	struct job *prev;
+	struct job *next;
+	pthread_t id;
+	/* more stuff */
+};
+
+struct queue{
+	struct job *head;
+	struct job *tail;
+	pthread_rwlock_t q_lock;
+};
+
+int queue_init(struct queue *qp){
+	qp->head = NULL;
+	qp->tail = NULL;
+
+	int err;
+	err = pthread_rwlock_init(&qp->q_lock, NULL);
+	if (err != 0){
+		return err;
+	}
+	/* other initialization */
+
+	return 0;
+}
+
+void queue_insert(struct queue *qp, struct job *jp){
+	// 这里假如有多个线程一直在读呢? 那么写锁会不会一直请求不到? 
+	// 还是说请求有一个队例, 在写锁请求之前的线程都读完了, 就轮到写锁获取了? 
+	pthread_rwlock_wrlock(&qp->q_lock);
+	jp->next = qp->head;
+	jp->prev = NULL;
+	if (qp->head != NULL){
+		qp->head->prev = jp;
+	}else{
+		qp->tail = jp;
+	}
+	qp->head = jp;
+	pthread_rwlock_unlock(&qp->q_lock);
+}
+
+void queue_append(struct queue *qp, struct job *jp){
+	pthread_rwlock_wrlock(&qp->q_lock);
+	jp->prev = qp->tail;
+	jp->next = NULL;
+	if (qp->tail != NULL){
+		qp->tail->next = jp;
+	}else{
+		qp->head = jp;
+	}
+	qp->tail = jp;
+	pthread_rwlock_unlock(&qp->q_lock);
+}
+
+void queue_remove(struct queue *qp, struct job *jp){
+	pthread_rwlock_wrlock(&qp->q_lock);
+	// 调用此方法, 已经确保, 队列不为空, 所以,临界情况在最后一个的时候
+	if (qp->head == jp){
+		qp->head = jp->next;
+		if (qp->tail == jp){
+			// 最后一个元素
+			qp->tail = NULL;
+		}else{
+			jp->next->prev = jp->prev; 
+		}
+	}else if(qp->tail == jp){
+		// 最后一个元素的情况已经在第一个if分支处理了
+		qp->tail = jp->prev;
+		qp->tail->next = jp->next;
+	}else{
+		// 中间的元素
+		jp->prev->next = jp->next;
+		jp->next->prev = jp->prev;
+	}
+	pthread_rwlock_unlock(&qp->q_lock);
+}
+
+struct job * queue_find(struct queue *qp, pthread_t id){
+	struct job *jp;
+	if (pthread_rwlock_rdlock(&qp->q_lock) != 0){
+		return NULL;
+	}
+
+	for (jp = qp->head; jp != NULL; jp=jp->next){
+		if(pthread_equal(jp->id, id)){
+			break;
+		}
+	}
+	pthread_rwlock_unlock(&qp->q_lock);
+	return jp;
+}
+
 void pthreadSynchronizationTest(){
 }
 
