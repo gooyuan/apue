@@ -2,6 +2,8 @@
 #include "apue.h"
 #include <pthread.h>
 #include "chapter11.h"
+#include <limits.h>
+#include <sys/time.h>
 
 void printids(const char *s){
 	pid_t pid = getpid();
@@ -196,6 +198,9 @@ struct job{
 	struct job *prev;
 	struct job *next;
 	pthread_t id;
+	/* 练习题 11.2, 增加引用计数, 防止在find和remove时, 修改id*/
+	int j_count;
+	pthread_mutex_t j_lock;
 	/* more stuff */
 };
 
@@ -285,14 +290,119 @@ struct job * queue_find(struct queue *qp, pthread_t id){
 	return jp;
 }
 
-void pthreadSynchronizationTest(){
+/**
+ * barrier sychronization example
+ * 需求: 对一个大数组排序
+ * 思路:
+ *		将大数组分成多个小数组, 开启线程各自排序
+ *		等各线程排序完成后, 再小各排序后的数组合在一起再排序
+ */
+#define NTHR 8
+#define NUMNUM 8000000L
+#define TNUM	(NUMNUM/NTHR)
+
+long nums[NUMNUM];
+long snums[NUMNUM];
+pthread_barrier_t barrier;
+
+int complong(const void *arg1, const void *arg2){
+	long l1 = *(long *)arg1;
+	long l2 = *(long *)arg2;
+	if (l1 == l2)
+		return 0;
+	else if (l1 < l2)
+		return -1;
+	else 
+		return 1;
+}
+#ifdef SOLARIS
+#define heapsort qsort
+#else
+extern int heapsort(void *, size_t, size_t, int (*)(const void *, const void *));
+#endif
+
+// 为何linux下也没有heapsort呢? 是extern的定义不对? 
+#define heapsort qsort
+
+void *thr_fn_sort(void *arg){
+	long idx = (long) arg;
+	heapsort(&nums[idx], TNUM, sizeof(long), complong);
+	//qsort(&nums[idx], TNUM, sizeof(long), complong);
+	pthread_barrier_wait(&barrier);
+
+	/* Go off and perform more work ...*/
+	return (void *)0;
+}
+
+/**
+ * 需求: 将多个已经排好序(升序)的数组合并成一个有序(升序)的数组
+ * 思路: O(1)
+ *		1. 用一个数组记录各自有序数组的当前最小索引
+ *		2. 比较各数组当前最小值, 取出总数列最小值, 并将最小值所在数组的索引+1
+ *		3. 将最小值依次填入合并数组中
+ */
+void merge(){
+	long idx[NTHR];
+	long i, sidx, num, minidx=0;
+	for (i = 0; i<NTHR; i++){
+		idx[i] = i * TNUM;
+	}
+	for (sidx = 0; sidx < NUMNUM; sidx++){
+		num = LONG_MAX;
+		for (i = 0; i<NTHR; i++){
+			if (idx[i] < (i+1) * TNUM && nums[idx[i]] < num) {
+				num = nums[idx[i]];
+				minidx = i;
+			}
+		}
+		snums[sidx] = nums[idx[minidx]];
+		idx[minidx]++;
+	}
+}
+void pthreadBarrierTest(){
+	srandom(1);
+	unsigned long  i;
+	for (i=0; i<NUMNUM; i++){
+		nums[i] = random();
+	}
+
+	pthread_t tid;
+	struct timeval start, end;
+	long long startusec, endusec;
+	double elapsed;
+	int err;
+	gettimeofday(&start, NULL);
+	pthread_barrier_init(&barrier, NULL, NTHR+1);
+	for (i = 0; i<NTHR; i++){
+		err = pthread_create(&tid, NULL, thr_fn_sort, (void *)(i * TNUM));
+		if (err != 0 ){
+			err_exit(err, "can't create thread");
+		}
+	}
+	pthread_barrier_wait(&barrier);
+
+	merge();
+
+	gettimeofday(&end, NULL);
+
+	startusec = start.tv_sec * 1000000 + start.tv_usec;
+	endusec = end.tv_sec * 1000000 + end.tv_usec;
+	elapsed = (double)(endusec - startusec) / 1000000.0f;
+	printf("sort took %.4f seconds\n", elapsed);
+	/*
+	for (i=0; i<NUMNUM; i++){
+		printf("%ld\n", snums[i]);
+	}
+	*/
 }
 
 int main(void){
 
 	//pthreadCreateTest();
 
-	pthreadExitTest();
+	//pthreadExitTest();
+
+	pthreadBarrierTest();
 
 	return 0;
 }
