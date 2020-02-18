@@ -4,6 +4,10 @@
 #include "chapter11.h"
 #include <limits.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
 
 void printids(const char *s){
 	pid_t pid = getpid();
